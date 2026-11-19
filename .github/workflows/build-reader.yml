@@ -1,0 +1,27 @@
+name: Build reader
+
+on:
+  push:
+    paths:
+      - 'reader/**'
+      - '.github/workflows/build-reader.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PyInstaller
+        run: python -m pip install pyinstaller
+      - name: Build the reader
+        run: pyinstaller --onefile --windowed --name EQLootReader --paths reader reader/app.py
+      - name: Zip it
+        run: Compress-Archive -Path dist/EQLootReader.exe -DestinationPath EQLootReader.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EQLootReader
+          path: EQLootReader.zip
