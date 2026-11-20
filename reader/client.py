@@ -40,7 +40,7 @@ from settings import Settings, character_of
 from state import State
 from tailer import LogTailer
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 ROLL_LOG_MAX = 200
 SAVE_EVERY = 2.0
 

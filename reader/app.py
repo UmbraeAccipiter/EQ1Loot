@@ -260,25 +260,44 @@ class App:
                        state="normal" if can_act else "disabled").pack(side="left")
             ttk.Button(lrow, text="Clear loot", command=self.clear_loot_click,
                        state="normal" if s.loot_items() else "disabled").pack(side="left", padx=6)
-        elif mode in ("closed", "different"):
+        elif mode == "closed":
+            code = s.state.raid_code
+            held = len(s.loot_items())
+            row = ttk.Frame(f)
+            row.pack(anchor="w")
+            ttk.Button(row, text="Start raid", command=self.start_raid_dialog,
+                       state="normal" if can_act else "disabled").pack(side="left")
+            ttk.Button(row, text="Join raid", command=self.join_dialog,
+                       state="normal" if can_act else "disabled").pack(side="left", padx=4)
+            hrow = ttk.Frame(f)
+            hrow.pack(anchor="w", pady=(8, 0))
+            if held:
+                ttk.Label(hrow, text=f"Raid {code} is no longer running. {held} items are still "
+                          "waiting.", foreground="#b45309", wraplength=300).pack(side="left")
+                ttk.Button(hrow, text="Clear loot", command=self.clear_loot_click
+                           ).pack(side="left", padx=6)
+            else:
+                ttk.Label(hrow, text=f"Raid {code} is no longer running.",
+                          foreground="#b45309").pack(side="left")
+            border = tk.Frame(f, background="#d97706", padx=2, pady=2)   # orange: a restart
+            border.pack(anchor="w", pady=(6, 0))
+            ttk.Button(border, text=f"Restart raid {code}", command=self.restart,
+                       state="normal" if can_act else "disabled").pack()
+            ttk.Label(f, text="Restart reopens that raid with its loot and rolls.",
+                      wraplength=400).pack(anchor="w")
+        elif mode == "different":
             held = s.waiting()
             msg = "No raid is currently running."
             if held:
                 msg += f" {held} items are waiting to upload."
             ttk.Label(f, text=msg, foreground="#b45309", wraplength=400).pack(anchor="w")
-            if mode == "closed":
-                ttk.Button(f, text="Restart raid", command=self.restart,
-                           state="normal" if can_act else "disabled").pack(anchor="w", pady=4)
-                ttk.Label(f, text=f"Restart reopens raid {s.state.raid_code} with its loot "
-                                  "and rolls.", wraplength=400).pack(anchor="w")
-            else:
-                ttk.Label(f, text="A different raid is running.").pack(anchor="w")
-                row = ttk.Frame(f)
-                row.pack(anchor="w", pady=4)
-                ttk.Button(row, text="Join raid", command=self.join_dialog,
-                           state="normal" if can_act else "disabled").pack(side="left")
-                ttk.Button(row, text="Discard waiting items",
-                           command=self.discard).pack(side="left", padx=4)
+            ttk.Label(f, text="A different raid is running.").pack(anchor="w")
+            row = ttk.Frame(f)
+            row.pack(anchor="w", pady=4)
+            ttk.Button(row, text="Join raid", command=self.join_dialog,
+                       state="normal" if can_act else "disabled").pack(side="left")
+            ttk.Button(row, text="Discard waiting items",
+                       command=self.discard).pack(side="left", padx=4)
         else:
             row = ttk.Frame(f)
             row.pack(anchor="w")
@@ -394,6 +413,12 @@ class App:
             if not code:
                 return
             win.destroy()
+            held = len(self.session.loot_items())
+            if held and self.session.state.raid_code and \
+                    code.upper() != self.session.state.raid_code and not self.ask(
+                    "Join a different raid?", f"{held} loot items from the old raid have not "
+                    "been sent and will be lost.", "Join raid"):
+                return
 
             def done(r, e):
                 if e:
@@ -424,7 +449,7 @@ class App:
         def go():
             who = var.get()
             win.destroy()
-            held = s.waiting()
+            held = len(s.loot_items())
             if held and s.state.raid_code and not self.ask(
                     "Start a new raid?", f"{held} loot items from the current raid have not "
                     "been sent and will be lost.", "Start raid"):
