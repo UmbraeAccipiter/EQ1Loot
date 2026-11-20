@@ -18,6 +18,15 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check the tag matches the program version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          v=$(grep -E '^VERSION = ' reader/client.py | sed -E 's/VERSION = "(.*)"/\1/')
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match VERSION $v in reader/client.py"
+            exit 1
+          fi
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
