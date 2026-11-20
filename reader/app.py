@@ -196,7 +196,8 @@ class App:
         raid = s.raid or {}
         dump = raid.get("last_dump") or {}
         sig = (mode, s.connected, s.state.raid_code, raid.get("started_by"),
-               dump.get("by"), dump.get("time"), dump.get("names"), s.waiting())
+               dump.get("by"), dump.get("time"), dump.get("names"), s.waiting(),
+               len(s.loot_items()))
         if sig != self._raid_sig:
             self._raid_sig = sig
             self.render_raid(mode, raid, dump)
@@ -235,7 +236,14 @@ class App:
         if mode == "in_raid":
             ttk.Label(f, text=f"Raid code  ·  Started by {raid.get('started_by', '?')}"
                       ).pack(anchor="w")
-            ttk.Label(f, text=s.state.raid_code, font=("Consolas", 22, "bold")).pack(anchor="w")
+            crow = ttk.Frame(f)
+            crow.pack(anchor="w")
+            code_lbl = ttk.Label(crow, text=s.state.raid_code, font=("Consolas", 22, "bold"),
+                                 cursor="hand2")
+            code_lbl.pack(side="left")
+            copied = ttk.Label(crow, text="", foreground="#15803d")
+            copied.pack(side="left", padx=8)
+            code_lbl.bind("<Button-1>", lambda e: self.copy_code(copied))
             row = ttk.Frame(f)
             row.pack(fill="x", pady=4)
             ttk.Button(row, text="Open website", command=self.open_website).pack(side="left")
@@ -246,8 +254,12 @@ class App:
                 ttk.Label(f, text=f"Last dump by {dump.get('by', '?')}: "
                                   f"{dump.get('time', '?')} ({dump.get('names', 0)} names)"
                           ).pack(anchor="w")
-            ttk.Button(f, text=f"Send loot ({s.waiting()} waiting)", command=self.send_loot,
-                       state="normal" if can_act else "disabled").pack(anchor="w", pady=(6, 0))
+            lrow = ttk.Frame(f)
+            lrow.pack(anchor="w", pady=(6, 0))
+            ttk.Button(lrow, text=f"Send loot ({s.waiting()} waiting)", command=self.send_loot,
+                       state="normal" if can_act else "disabled").pack(side="left")
+            ttk.Button(lrow, text="Clear loot", command=self.clear_loot_click,
+                       state="normal" if s.loot_items() else "disabled").pack(side="left", padx=6)
         elif mode in ("closed", "different"):
             held = s.waiting()
             msg = "No raid is currently running."
@@ -319,6 +331,29 @@ class App:
             elif not r[0]:
                 self.fail(r[1])
         self.bg("loot", self.session.send_loot, done)
+
+    def copy_code(self, copied_label):
+        code = self.session.state.raid_code
+        if not code:
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(code)
+        copied_label.configure(text="Copied")
+
+        def hide():
+            try:
+                copied_label.configure(text="")
+            except Exception:                      # the label was redrawn meanwhile
+                pass
+        self.root.after(1200, hide)
+
+    def clear_loot_click(self):
+        s = self.session
+        n = len(s.loot_items())
+        if n and self.ask("Clear loot?", f"Discard {n} loot items that have not been sent? "
+                          "Nothing is sent to the server.", "Clear loot"):
+            s.clear_loot()
+            self.invalidate()
 
     def leave(self):
         s = self.session

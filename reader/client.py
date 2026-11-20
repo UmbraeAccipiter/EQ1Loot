@@ -296,6 +296,16 @@ class ReaderSession:
         self._save(force=True)
         return True, f"Sent {len(ticked)} item(s)."
 
+    def clear_loot(self) -> int:
+        """Throw away the waiting loot without sending it (junk before a boss).
+        Rolls, the raid and the log positions are kept. The "seen" memory is kept too, so a
+        copy of a cleared line arriving later from another of our logs is still ignored."""
+        with self.lock:
+            n = len(self.state.loot)
+            self.state.loot = []
+        self._save(force=True)
+        return n
+
     def send_dump(self) -> tuple[bool, str]:
         if not self.state.raid_code:
             return False, "Not in a raid."
