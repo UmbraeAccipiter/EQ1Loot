@@ -2,10 +2,16 @@ name: Build reader
 
 on:
   push:
+    branches: ['**']
     paths:
       - 'reader/**'
       - '.github/workflows/build-reader.yml'
+    tags:
+      - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -25,3 +31,8 @@ jobs:
         with:
           name: EQLootReader
           path: EQLootReader.zip
+      - name: Publish a Release for version tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$env:GITHUB_REF_NAME" EQLootReader.zip --title "EQ Loot Reader $env:GITHUB_REF_NAME" --generate-notes
